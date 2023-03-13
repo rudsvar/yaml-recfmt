@@ -1,11 +1,11 @@
-//! A formatter for nested YAML files.
+//! A formatter for YAML files.
 //!
 //! YAML can contain multiline strings that are also YAML,
 //! but normal formatters will (understandably) not format
 //! these nested values.
 //!
-//! This application does it anyway, which can be useful
-//! for files such as Helm charts with configuration in them.
+//! When the `--recursive` flag is provided, this application does so anyway.
+//! Note that this actually changes the data of the string, so use with care.
 //!
 //! # Installation
 //!
@@ -21,16 +21,16 @@
 //! yaml-recfmt --help
 //! ```
 //!
-//! Read from one file and write to another.
-//!
-//! ```bash
-//! yaml-recfmt input.yaml --output output.yaml
-//! ```
-//!
 //! Pipe through `yaml-recfmt`.
 //!
 //! ```bash
 //! cat input.yaml | yaml-recfmt > output.yaml
+//! ```
+//!
+//! Format a set of files recursively in-place.
+//!
+//! ```bash
+//! yaml-recfmt --in-place --recursive examples/*.yaml
 //! ```
 
 use regex::Regex;
@@ -61,7 +61,7 @@ pub fn format_value(value: Value) -> Value {
     }
 }
 
-/// Recursively format a YAML-formatted string.
+/// Recursively formats a YAML-formatted string.
 ///
 /// # Examples
 ///
@@ -72,10 +72,18 @@ pub fn format_value(value: Value) -> Value {
 /// ```
 /// assert_eq!("foo: bar\n", yaml_recfmt::format("foo:   bar").unwrap());
 /// ```
-pub fn format(yaml: &str) -> serde_yaml::Result<String> {
+pub fn format_recursive(yaml: &str) -> serde_yaml::Result<String> {
     let parsed: Value = serde_yaml::from_str(yaml)?;
     let value = format_value(parsed);
     let formatted = serde_yaml::to_string(&value)?;
+    let re = Regex::new("(\\s+)(0\\d+)").unwrap();
+    Ok(re.replace_all(&formatted, "$1'$2'").to_string())
+}
+
+/// Formats a YAML-formatted string.
+pub fn format(yaml: &str) -> serde_yaml::Result<String> {
+    let parsed: Value = serde_yaml::from_str(yaml)?;
+    let formatted = serde_yaml::to_string(&parsed)?;
     let re = Regex::new("(\\s+)(0\\d+)").unwrap();
     Ok(re.replace_all(&formatted, "$1'$2'").to_string())
 }
@@ -88,7 +96,7 @@ mod tests {
     fn does_not_change_normal_yaml() {
         let input = r#"foo: bar
 "#;
-        let expected = format(input).unwrap();
+        let expected = format_recursive(input).unwrap();
         assert_eq!(input, expected)
     }
 
@@ -98,7 +106,7 @@ mod tests {
 "#;
         let expected = r#"foo: bar
 "#;
-        let output = format(input).unwrap();
+        let output = format_recursive(input).unwrap();
         assert_eq!(expected, output)
     }
 
@@ -112,7 +120,7 @@ mod tests {
   bar: 123
   baz: 345
 "#;
-        let output = format(input).unwrap();
+        let output = format_recursive(input).unwrap();
         assert_eq!(expected, output)
     }
 
@@ -126,7 +134,7 @@ mod tests {
   bar:
     baz: 345
 "#;
-        let output = format(input).unwrap();
+        let output = format_recursive(input).unwrap();
         assert_eq!(expected, output)
     }
 
@@ -148,7 +156,7 @@ mod tests {
   - foo: 3
     bar: 4
 "#;
-        let output = format(input).unwrap();
+        let output = format_recursive(input).unwrap();
         assert_eq!(expected, output)
     }
 
@@ -162,7 +170,7 @@ mod tests {
   bar: 123
   baz: '0123'
 "#;
-        let output = format(input).unwrap();
+        let output = format_recursive(input).unwrap();
         assert_eq!(expected, output)
     }
 
@@ -176,7 +184,7 @@ mod tests {
   bar: 123
   baz: '0123'
 "#;
-        let output = format(input).unwrap();
+        let output = format_recursive(input).unwrap();
         assert_eq!(expected, output)
     }
 
@@ -190,7 +198,7 @@ mod tests {
 - 123
 - '0123'
 "#;
-        let output = format(input).unwrap();
+        let output = format_recursive(input).unwrap();
         assert_eq!(expected, output)
     }
 }

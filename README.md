@@ -1,13 +1,13 @@
 # yaml-recfmt
 
-A formatter for nested YAML files.
+A formatter for YAML files.
 
 YAML can contain multiline strings that are also YAML,
 but normal formatters will (understandably) not format
 these nested values.
 
-This application does it anyway, which can be useful
-for files such as Helm charts with configuration in them.
+When the `--recursive` flag is provided, this application does so anyway.
+Note that this actually changes the data of the string, so use with care.
 
 ## Installation
 
@@ -23,16 +23,16 @@ Display help.
 yaml-recfmt --help
 ```
 
-Read from one file and write to another.
-
-```bash
-yaml-recfmt input.yaml --output output.yaml
-```
-
 Pipe through `yaml-recfmt`.
 
 ```bash
 cat input.yaml | yaml-recfmt > output.yaml
+```
+
+Format a set of files recursively in-place.
+
+```bash
+yaml-recfmt --in-place --recursive examples/*.yaml
 ```
 
 License: MIT OR Apache-2.0
