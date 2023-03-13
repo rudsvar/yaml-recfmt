@@ -6,22 +6,47 @@
 //!
 //! This application does it anyway, which can be useful
 //! for files such as Helm charts with configuration in them.
-
-use std::io::{Read, Write};
+//!
+//! # Examples
+//!
+//! Display help.
+//!
+//! ```bash
+//! yaml-recfmt -h
+//! ```
+//!
+//! Pipe YAML from one file to another.
+//!
+//! ```bash
+//! cat input.yaml | yaml-recfmt > output.yaml
+//! ```
+//!
+//! Read from one file and write to another.
+//!
+//! ```bash
+//! yaml-recfmt --input input.yaml --output output.yaml
+//! ```
+//!
+//! Format a file in-place.
+//!
+//! ```bash
+//! yaml-recfmt input.yaml
+//! ```
 
 use serde_yaml::Value;
+use std::io::Write;
 
 /// Parses and formats nested strings found in the YAML value.
 pub fn format(value: Value) -> Value {
     match value {
         Value::String(s) => match serde_yaml::from_str::<Value>(&s) {
-            // Inner value was just a string, keep it.
-            Ok(s @ Value::String(_)) => s,
             // Inner value is more yaml, recurse
-            Ok(v) => {
+            Ok(v) if v.is_mapping() || v.is_sequence() => {
                 let formatted = serde_yaml::to_string(&format(v));
                 Value::String(formatted.expect("failed to serialize yaml"))
             }
+            // Not interesting value
+            Ok(v) => v,
             // Not yaml, keep original
             Err(_) => Value::String(s),
         },
@@ -35,9 +60,9 @@ pub fn format(value: Value) -> Value {
 }
 
 /// Read YAML from the reader and write the formatted output to the writer.
-pub fn run_format<R: Read, W: Write>(input: R, output: W) -> color_eyre::Result<()> {
+pub fn run_format<W: Write>(input: &str, output: W) -> color_eyre::Result<()> {
     // Run formatter on input
-    let yaml: Value = serde_yaml::from_reader(input)?;
+    let yaml: Value = serde_yaml::from_str(input)?;
     let formatted = format(yaml);
 
     // Write formatted value to output
@@ -49,12 +74,10 @@ pub fn run_format<R: Read, W: Write>(input: R, output: W) -> color_eyre::Result<
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Cursor;
 
     fn format_string(yaml: &str) -> color_eyre::Result<String> {
-        let input = Cursor::new(yaml);
         let mut output = Vec::new();
-        run_format(input, &mut output)?;
+        run_format(yaml, &mut output)?;
         Ok(String::from_utf8(output)?)
     }
 
@@ -99,6 +122,28 @@ mod tests {
         let expected = r#"foo: |
   bar:
     baz: 345
+"#;
+        let output = format_string(input).unwrap();
+        assert_eq!(expected, output)
+    }
+
+    #[test]
+    fn sequences_are_formatted() {
+        let input = r#"sequence: |
+            - foo: 1
+              bar:
+              - a
+              - b
+            - foo: 3
+              bar: 4
+"#;
+        let expected = r#"sequence: |
+  - foo: 1
+    bar:
+    - a
+    - b
+  - foo: 3
+    bar: 4
 "#;
         let output = format_string(input).unwrap();
         assert_eq!(expected, output)
