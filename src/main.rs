@@ -13,16 +13,20 @@ pub struct Args {
     output: Option<String>,
 }
 
-fn read_input(args: &Args) -> color_eyre::Result<String> {
+fn read_input(args: &Args) -> std::io::Result<String> {
     let input: Box<dyn Read> = match &args.file {
         Some(file) => Box::new(File::open(file)?),
         None => Box::new(std::io::stdin()),
     };
-    Ok(read_to_string(input)?)
+    read_to_string(input)
 }
 
 fn main() -> color_eyre::Result<()> {
-    tracing_subscriber::fmt().init();
+    color_eyre::install()?;
+    tracing_subscriber::fmt()
+        .with_writer(std::io::stderr)
+        .init();
+
     let args = Args::parse();
     let input = read_input(&args)?;
 
