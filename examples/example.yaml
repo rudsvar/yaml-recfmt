@@ -1,0 +1,7 @@
+data: |
+  person:
+      name: foo
+      age: 123
+      files:
+      - foo.txt
+      - bar.txt
