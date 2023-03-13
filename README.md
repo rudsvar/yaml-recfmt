@@ -20,19 +20,19 @@ cargo install --git https://github.com/rudsvar/yaml-recfmt
 Display help.
 
 ```bash
-yaml-recfmt -h
-```
-
-Pipe through `yaml-recfmt`.
-
-```bash
-cat input.yaml | yaml-recfmt > output.yaml
+yaml-recfmt --help
 ```
 
 Read from one file and write to another.
 
 ```bash
 yaml-recfmt input.yaml --output output.yaml
+```
+
+Pipe through `yaml-recfmt`.
+
+```bash
+cat input.yaml | yaml-recfmt > output.yaml
 ```
 
 License: MIT OR Apache-2.0

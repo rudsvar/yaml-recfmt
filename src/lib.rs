@@ -18,13 +18,7 @@
 //! Display help.
 //!
 //! ```bash
-//! yaml-recfmt -h
-//! ```
-//!
-//! Pipe through `yaml-recfmt`.
-//!
-//! ```bash
-//! cat input.yaml | yaml-recfmt > output.yaml
+//! yaml-recfmt --help
 //! ```
 //!
 //! Read from one file and write to another.
@@ -32,17 +26,22 @@
 //! ```bash
 //! yaml-recfmt input.yaml --output output.yaml
 //! ```
+//!
+//! Pipe through `yaml-recfmt`.
+//!
+//! ```bash
+//! cat input.yaml | yaml-recfmt > output.yaml
+//! ```
 
 use serde_yaml::Value;
-use std::io::Write;
 
-/// Parses and formats nested strings found in the YAML value.
-pub fn format(value: Value) -> Value {
+/// Recursively formats strings found within a YAML value.
+pub fn format_value(value: Value) -> Value {
     match value {
         Value::String(s) => match serde_yaml::from_str::<Value>(&s) {
             // Inner value is more yaml, recurse
             Ok(v) if v.is_mapping() || v.is_sequence() => {
-                let formatted = serde_yaml::to_string(&format(v));
+                let formatted = serde_yaml::to_string(&format_value(v));
                 Value::String(formatted.expect("failed to serialize yaml"))
             }
             // Not interesting value
@@ -51,41 +50,42 @@ pub fn format(value: Value) -> Value {
             Err(_) => Value::String(s),
         },
         // Format each element of the sequence
-        Value::Sequence(s) => Value::Sequence(s.into_iter().map(format).collect()),
+        Value::Sequence(s) => Value::Sequence(s.into_iter().map(format_value).collect()),
         // Format the values of the mapping
-        Value::Mapping(m) => Value::Mapping(m.into_iter().map(|(k, v)| (k, format(v))).collect()),
+        Value::Mapping(m) => {
+            Value::Mapping(m.into_iter().map(|(k, v)| (k, format_value(v))).collect())
+        }
         // Keep all other values
         value => value,
     }
 }
 
-/// Read YAML from the reader and write the formatted output to the writer.
-pub fn run_format<W: Write>(input: &str, output: W) -> color_eyre::Result<()> {
-    // Run formatter on input
-    let yaml: Value = serde_yaml::from_str(input)?;
-    let formatted = format(yaml);
-
-    // Write formatted value to output
-    serde_yaml::to_writer(output, &formatted)?;
-
-    Ok(())
+/// Recursively format a YAML-formatted string.
+///
+/// # Examples
+///
+/// ```
+/// assert_eq!("foo: bar\n", yaml_recfmt::format("foo: bar").unwrap());
+/// ```
+///
+/// ```
+/// assert_eq!("foo: bar\n", yaml_recfmt::format("foo:   bar").unwrap());
+/// ```
+pub fn format(yaml: &str) -> serde_yaml::Result<String> {
+    let parsed: Value = serde_yaml::from_str(yaml)?;
+    let formatted = format_value(parsed);
+    serde_yaml::to_string(&formatted)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
 
-    fn format_string(yaml: &str) -> color_eyre::Result<String> {
-        let mut output = Vec::new();
-        run_format(yaml, &mut output)?;
-        Ok(String::from_utf8(output)?)
-    }
-
     #[test]
     fn does_not_change_normal_yaml() {
         let input = r#"foo: bar
 "#;
-        let expected = format_string(input).unwrap();
+        let expected = format(input).unwrap();
         assert_eq!(input, expected)
     }
 
@@ -95,7 +95,7 @@ mod tests {
 "#;
         let expected = r#"foo: bar
 "#;
-        let output = format_string(input).unwrap();
+        let output = format(input).unwrap();
         assert_eq!(expected, output)
     }
 
@@ -109,7 +109,7 @@ mod tests {
   bar: 123
   baz: 345
 "#;
-        let output = format_string(input).unwrap();
+        let output = format(input).unwrap();
         assert_eq!(expected, output)
     }
 
@@ -123,7 +123,7 @@ mod tests {
   bar:
     baz: 345
 "#;
-        let output = format_string(input).unwrap();
+        let output = format(input).unwrap();
         assert_eq!(expected, output)
     }
 
@@ -145,7 +145,7 @@ mod tests {
   - foo: 3
     bar: 4
 "#;
-        let output = format_string(input).unwrap();
+        let output = format(input).unwrap();
         assert_eq!(expected, output)
     }
 }

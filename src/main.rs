@@ -23,18 +23,20 @@ fn read_input(args: &Args) -> color_eyre::Result<String> {
 
 fn main() -> color_eyre::Result<()> {
     tracing_subscriber::fmt().init();
-
     let args = Args::parse();
-
     let input = read_input(&args)?;
 
+    // Format the input
+    let formatted = yaml_recfmt::format(&input)?;
+
     // Find out where to write to
-    let output: Box<dyn Write> = match &args.file {
+    let mut output: Box<dyn Write> = match &args.file {
         Some(file) => Box::new(File::create(file)?),
         None => Box::new(std::io::stdout()),
     };
 
-    yaml_recfmt::run_format(&input, output)?;
+    // Write to output
+    output.write_all(formatted.as_bytes())?;
 
     Ok(())
 }
