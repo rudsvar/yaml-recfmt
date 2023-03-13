@@ -65,7 +65,7 @@ fn main() -> color_eyre::Result<()> {
         pipe()?;
     } else {
         args.files.iter().for_each(|path| {
-            if let Err(e) = read_from_file(&path, &args) {
+            if let Err(e) = read_from_file(path, &args) {
                 tracing::warn!("Failed to process {path}: {}", e);
             }
         });
