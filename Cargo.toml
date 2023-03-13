@@ -1,9 +1,10 @@
 [package]
-name = "recursive-yaml-format"
+name = "yaml-recfmt"
 version = "0.1.0"
 edition = "2021"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Recursively formats YAML files that contain strings that are also valid YAML"
+authors = ["Rudi B. Svartveit <rudsvar@gmail.com>"]
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 clap = { version = "4.1.8", features = ["derive"] }
