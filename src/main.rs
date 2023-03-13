@@ -1,7 +1,9 @@
 use clap::Parser;
+use color_eyre::eyre::Context;
+use ignore::{DirEntry, Walk};
 use std::{fs::File, io::Write};
+use tracing::metadata::LevelFilter;
 use tracing_subscriber::EnvFilter;
-use walkdir::{DirEntry, WalkDir};
 
 /// Formats YAML-files.
 #[derive(Debug, Parser)]
@@ -18,17 +20,16 @@ pub struct Args {
 
 /// Read from stdin and write to stdout
 fn pipe() -> color_eyre::Result<()> {
-    tracing::info!("Reading from stdin");
+    tracing::info!("Processing stdin");
     let input = std::io::read_to_string(std::io::stdin())?;
     let formatted = yaml_recfmt::format_recursive(&input)?;
-    tracing::info!("Writing to stdout");
     print!("{formatted}");
     Ok(())
 }
 
 /// Read from a file and write to stdout or back to the file.
 fn read_from_file(path: &str, args: &Args) -> color_eyre::Result<()> {
-    tracing::info!("Reading from {path}");
+    tracing::info!("Processing {path}");
 
     // Format content of file
     let input = std::fs::read_to_string(path)?;
@@ -40,10 +41,8 @@ fn read_from_file(path: &str, args: &Args) -> color_eyre::Result<()> {
 
     // Find out where to write to
     let mut output: Box<dyn Write> = if args.in_place {
-        tracing::info!("Writing to {path}");
         Box::new(File::create(path)?)
     } else {
-        tracing::info!("Writing to stdout");
         Box::new(std::io::stdout())
     };
 
@@ -52,20 +51,21 @@ fn read_from_file(path: &str, args: &Args) -> color_eyre::Result<()> {
     Ok(())
 }
 
-/// Checks if a file is hidden.
-fn is_hidden(entry: &DirEntry) -> bool {
-    entry
-        .file_name()
-        .to_str()
-        .map(|s| s.starts_with('.'))
-        .unwrap_or(false)
+/// Check if a file is (likely) YAML.
+fn is_yaml(entry: &DirEntry) -> bool {
+    let ext = entry.path().extension().and_then(|e| e.to_str());
+    ext == Some("yml") || ext == Some("yaml")
 }
 
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
+    let env_filter = EnvFilter::builder()
+        .with_default_directive(LevelFilter::INFO.into())
+        .from_env()
+        .context("invalid RUST_LOG value")?;
     tracing_subscriber::fmt()
         .with_writer(std::io::stderr)
-        .with_env_filter(EnvFilter::from_default_env())
+        .with_env_filter(env_filter)
         .init();
 
     let args = Args::parse();
@@ -74,13 +74,15 @@ fn main() -> color_eyre::Result<()> {
     if args.files.is_empty() {
         pipe()?;
     } else {
+        // Iterate through file list
         args.files.iter().for_each(|root| {
-            let paths = WalkDir::new(root)
+            // If directory, recurse into it
+            let paths = Walk::new(root)
                 .into_iter()
-                .filter_entry(|e| !is_hidden(e))
                 .filter_map(|e| e.ok())
-                .filter(|e| e.file_type().is_file())
+                .filter(is_yaml)
                 .filter_map(|e| e.path().to_str().map(|s| s.to_string()));
+            // Try formatting all found files
             for path in paths {
                 if let Err(e) = read_from_file(&path, &args) {
                     tracing::warn!("Failed to process {path}: {}", e);
