@@ -21,7 +21,7 @@
 //! yaml-recfmt -h
 //! ```
 //!
-//! Pipe YAML from one file to another.
+//! Pipe through `yaml-recfmt`.
 //!
 //! ```bash
 //! cat input.yaml | yaml-recfmt > output.yaml
@@ -30,13 +30,7 @@
 //! Read from one file and write to another.
 //!
 //! ```bash
-//! yaml-recfmt --input input.yaml --output output.yaml
-//! ```
-//!
-//! Format a file in-place.
-//!
-//! ```bash
-//! yaml-recfmt input.yaml
+//! yaml-recfmt input.yaml --output output.yaml
 //! ```
 
 use serde_yaml::Value;
