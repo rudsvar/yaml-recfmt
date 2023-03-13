@@ -1,16 +1,17 @@
 use clap::Parser;
 use std::{
     fs::File,
-    io::{read_to_string, Read, Write},
+    io::{Read, Write},
 };
 
+/// Recursively format YAML files.
 #[derive(Parser)]
 pub struct Args {
-    // The input file to read from. Standard in by default.
+    /// The input file to read from. Defaults to standard in.
     file: Option<String>,
-    // The output file to write to. '-' means standard out.
+    /// Overwrite the file in-place.
     #[arg(short, long)]
-    output: Option<String>,
+    in_place: bool,
 }
 
 fn read_input(args: &Args) -> std::io::Result<String> {
@@ -18,7 +19,7 @@ fn read_input(args: &Args) -> std::io::Result<String> {
         Some(file) => Box::new(File::open(file)?),
         None => Box::new(std::io::stdin()),
     };
-    read_to_string(input)
+    std::io::read_to_string(input)
 }
 
 fn main() -> color_eyre::Result<()> {
@@ -35,8 +36,8 @@ fn main() -> color_eyre::Result<()> {
 
     // Find out where to write to
     let mut output: Box<dyn Write> = match &args.file {
-        Some(file) => Box::new(File::create(file)?),
-        None => Box::new(std::io::stdout()),
+        Some(file) if args.in_place => Box::new(File::create(file)?),
+        _ => Box::new(std::io::stdout()),
     };
 
     // Write to output
