@@ -1,6 +1,7 @@
 use clap::Parser;
 use std::{fs::File, io::Write};
 use tracing_subscriber::EnvFilter;
+use walkdir::{DirEntry, WalkDir};
 
 /// Formats YAML-files.
 #[derive(Debug, Parser)]
@@ -51,6 +52,15 @@ fn read_from_file(path: &str, args: &Args) -> color_eyre::Result<()> {
     Ok(())
 }
 
+/// Checks if a file is hidden.
+fn is_hidden(entry: &DirEntry) -> bool {
+    entry
+        .file_name()
+        .to_str()
+        .map(|s| s.starts_with('.'))
+        .unwrap_or(false)
+}
+
 fn main() -> color_eyre::Result<()> {
     color_eyre::install()?;
     tracing_subscriber::fmt()
@@ -64,9 +74,17 @@ fn main() -> color_eyre::Result<()> {
     if args.files.is_empty() {
         pipe()?;
     } else {
-        args.files.iter().for_each(|path| {
-            if let Err(e) = read_from_file(path, &args) {
-                tracing::warn!("Failed to process {path}: {}", e);
+        args.files.iter().for_each(|root| {
+            let paths = WalkDir::new(root)
+                .into_iter()
+                .filter_entry(|e| !is_hidden(e))
+                .filter_map(|e| e.ok())
+                .filter(|e| e.file_type().is_file())
+                .filter_map(|e| e.path().to_str().map(|s| s.to_string()));
+            for path in paths {
+                if let Err(e) = read_from_file(&path, &args) {
+                    tracing::warn!("Failed to process {path}: {}", e);
+                }
             }
         });
     }
