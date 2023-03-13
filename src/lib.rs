@@ -7,6 +7,12 @@
 //! This application does it anyway, which can be useful
 //! for files such as Helm charts with configuration in them.
 //!
+//! # Installation
+//!
+//! ```bash
+//! cargo install --git https://github.com/rudsvar/yaml-recfmt
+//! ```
+//!
 //! # Examples
 //!
 //! Display help.
