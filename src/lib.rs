@@ -33,6 +33,7 @@
 //! cat input.yaml | yaml-recfmt > output.yaml
 //! ```
 
+use regex::Regex;
 use serde_yaml::Value;
 
 /// Recursively formats strings found within a YAML value.
@@ -73,8 +74,10 @@ pub fn format_value(value: Value) -> Value {
 /// ```
 pub fn format(yaml: &str) -> serde_yaml::Result<String> {
     let parsed: Value = serde_yaml::from_str(yaml)?;
-    let formatted = format_value(parsed);
-    serde_yaml::to_string(&formatted)
+    let value = format_value(parsed);
+    let formatted = serde_yaml::to_string(&value)?;
+    let re = Regex::new("(\\s+)(0\\d+)").unwrap();
+    Ok(re.replace_all(&formatted, "$1'$2'").to_string())
 }
 
 #[cfg(test)]
@@ -144,6 +147,48 @@ mod tests {
     - b
   - foo: 3
     bar: 4
+"#;
+        let output = format(input).unwrap();
+        assert_eq!(expected, output)
+    }
+
+    #[test]
+    fn quotes_are_kept_if_zero_prefix() {
+        let input = r#"foo:
+  bar: '123'
+  baz: '0123'
+"#;
+        let expected = r#"foo:
+  bar: 123
+  baz: '0123'
+"#;
+        let output = format(input).unwrap();
+        assert_eq!(expected, output)
+    }
+
+    #[test]
+    fn quotes_are_kept_if_zero_prefix_when_nested() {
+        let input = r#"foo: |
+  bar: '123'
+  baz: '0123'
+"#;
+        let expected = r#"foo: |
+  bar: 123
+  baz: '0123'
+"#;
+        let output = format(input).unwrap();
+        assert_eq!(expected, output)
+    }
+
+    #[test]
+    fn quotes_are_kept_if_zero_prefix_in_sequence() {
+        let input = r#"foo:
+  - '123'
+  - '0123'
+"#;
+        let expected = r#"foo:
+- 123
+- '0123'
 "#;
         let output = format(input).unwrap();
         assert_eq!(expected, output)
