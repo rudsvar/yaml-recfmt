@@ -22,7 +22,7 @@ pub struct Args {
 fn pipe() -> color_eyre::Result<()> {
     tracing::info!("Processing stdin");
     let input = std::io::read_to_string(std::io::stdin())?;
-    let formatted = yaml_recfmt::format_recursive(&input)?;
+    let formatted = yaml_recfmt::format::format_recursive(&input)?;
     print!("{formatted}");
     Ok(())
 }
@@ -34,9 +34,9 @@ fn read_from_file(path: &str, args: &Args) -> color_eyre::Result<()> {
     // Format content of file
     let input = std::fs::read_to_string(path)?;
     let formatted = if args.recursive {
-        yaml_recfmt::format_recursive(&input)
+        yaml_recfmt::format::format_recursive(&input)
     } else {
-        yaml_recfmt::format(&input)
+        yaml_recfmt::format::format(&input)
     }?;
 
     // Find out where to write to
