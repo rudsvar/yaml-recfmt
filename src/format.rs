@@ -44,7 +44,12 @@ pub fn format_recursive(yaml: &str) -> serde_yaml::Result<String> {
     let value = format_value(parsed);
     let formatted = serde_yaml::to_string(&value)?;
     let re = Regex::new(ZERO_PREFIXED_NUMBERS).unwrap();
-    Ok(re.replace_all(&formatted, "$1$2'$3'").to_string())
+    let formatted = re.replace_all(&formatted, "$1$2'$3'").to_string();
+    let formatted = Regex::new(r#"(true|false)"#)
+        .unwrap()
+        .replace_all(&formatted, "'$1'")
+        .to_string();
+    Ok(formatted)
 }
 
 /// Formats a YAML-formatted string.
@@ -52,7 +57,12 @@ pub fn format(yaml: &str) -> serde_yaml::Result<String> {
     let parsed: Value = serde_yaml::from_str(yaml)?;
     let formatted = serde_yaml::to_string(&parsed)?;
     let re = Regex::new(ZERO_PREFIXED_NUMBERS).unwrap();
-    Ok(re.replace_all(&formatted, "$1$2'$3'").to_string())
+    let formatted = re.replace_all(&formatted, "$1$2'$3'").to_string();
+    let formatted = Regex::new(r#"(true|false)"#)
+        .unwrap()
+        .replace_all(&formatted, "'$1'")
+        .to_string();
+    Ok(formatted)
 }
 
 #[cfg(test)]
@@ -173,6 +183,17 @@ mod tests {
     fn infix_zero_prefixed_numbers_are_not_changed() {
         let input = r#"foo: 00 003 821"#;
         let expected = r#"foo: 00 003 821
+"#;
+        let output = format_recursive(input).unwrap();
+        assert_eq!(expected, output)
+    }
+
+    #[test]
+    fn true_and_false_are_quoted() {
+        let input = r#"foo: true
+bar: false"#;
+        let expected = r#"foo: 'true'
+bar: 'false'
 "#;
         let output = format_recursive(input).unwrap();
         assert_eq!(expected, output)
