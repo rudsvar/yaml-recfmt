@@ -16,6 +16,9 @@ pub struct Args {
     /// Recursively format YAML-formatted strings.
     #[arg(short, long)]
     recursive: bool,
+    /// Don't write to any files.
+    #[arg(short, long)]
+    dry_run: bool,
 }
 
 /// Read from stdin and write to stdout
@@ -39,15 +42,23 @@ fn read_from_file(path: &str, args: &Args) -> color_eyre::Result<()> {
         yaml_recfmt::format::format(&input)
     }?;
 
-    // Find out where to write to
-    let mut output: Box<dyn Write> = if args.in_place {
-        Box::new(File::create(path)?)
-    } else {
-        Box::new(std::io::stdout())
-    };
+    // Log if changed
+    if input != formatted {
+        tracing::info!("Modified {path}");
+    }
 
-    // Write to output
-    output.write_all(formatted.as_bytes())?;
+    if !args.dry_run {
+        // Find out where to write to
+        let mut output: Box<dyn Write> = if args.in_place {
+            Box::new(File::create(path)?)
+        } else {
+            Box::new(std::io::stdout())
+        };
+
+        // Write to output
+        output.write_all(formatted.as_bytes())?;
+    }
+
     Ok(())
 }
 
@@ -78,7 +89,6 @@ fn main() -> color_eyre::Result<()> {
         args.files.iter().for_each(|root| {
             // If directory, recurse into it
             let paths = Walk::new(root)
-                .into_iter()
                 .filter_map(|e| e.ok())
                 .filter(is_yaml)
                 .filter_map(|e| e.path().to_str().map(|s| s.to_string()));
