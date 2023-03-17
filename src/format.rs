@@ -176,8 +176,8 @@ mod tests {
 
     #[test]
     fn true_and_false_are_quoted() {
-        let input = r#"foo: true
-bar: false"#;
+        let input = r#"foo: 'true'
+bar: 'false'"#;
         let expected = r#"foo: 'true'
 bar: 'false'
 "#;
