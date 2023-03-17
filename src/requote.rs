@@ -63,7 +63,7 @@ fn requote_map_entries(original: &str, unquoted: &str) -> String {
     requoted
 }
 
-pub fn requote_sequence_elements(original: &str, unquoted: &str) -> String {
+fn requote_sequence_elements(original: &str, unquoted: &str) -> String {
     let mut requoted = unquoted.to_string();
     for SequenceElement {
         lquote,
@@ -76,6 +76,12 @@ pub fn requote_sequence_elements(original: &str, unquoted: &str) -> String {
     requoted
 }
 
+/// If either a key value pair `key: value` or an element `- value` is
+/// found in the original string, and `value` is quoted there, it will
+/// also be quoted in the output string.
+///
+/// Warning: This is currently a bit too aggressive.
+/// If the same value is found multiple places, all of them will be quoted.
 pub fn requote(original: &str, unquoted: &str) -> String {
     let requoted = requote_map_entries(original, unquoted);
     let requoted = requote_sequence_elements(original, &requoted);
@@ -141,6 +147,25 @@ mod tests {
             bar: bar
             baz: baz
             - test
+        "#;
+        let requoted = requote(original, unquoted);
+        assert_eq!(original, requoted);
+    }
+
+    #[ignore = "requoting is still a bit too aggressive"]
+    #[test]
+    fn requote_doesnt_requote_unquoted() {
+        let original = r#"
+            foo:
+                foo: test
+            bar:
+                foo: 'test'
+        "#;
+        let unquoted = r#"
+            foo:
+                foo: test
+            bar:
+                foo: test
         "#;
         let requoted = requote(original, unquoted);
         assert_eq!(original, requoted);
