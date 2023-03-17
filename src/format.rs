@@ -1,4 +1,4 @@
-use regex::Regex;
+use crate::requote::requote;
 use serde_yaml::Value;
 
 /// Recursively formats strings found within a YAML value.
@@ -26,8 +26,6 @@ pub fn format_value(value: Value) -> Value {
     }
 }
 
-const ZERO_PREFIXED_NUMBERS: &str = r#"(?m)([:-])(\s*)(0\d+)$"#;
-
 /// Recursively formats a YAML-formatted string.
 ///
 /// # Examples
@@ -43,26 +41,14 @@ pub fn format_recursive(yaml: &str) -> serde_yaml::Result<String> {
     let parsed: Value = serde_yaml::from_str(yaml)?;
     let value = format_value(parsed);
     let formatted = serde_yaml::to_string(&value)?;
-    let re = Regex::new(ZERO_PREFIXED_NUMBERS).unwrap();
-    let formatted = re.replace_all(&formatted, "$1$2'$3'").to_string();
-    let formatted = Regex::new(r#"(true|false)"#)
-        .unwrap()
-        .replace_all(&formatted, "'$1'")
-        .to_string();
-    Ok(formatted)
+    Ok(requote(yaml, &formatted))
 }
 
 /// Formats a YAML-formatted string.
 pub fn format(yaml: &str) -> serde_yaml::Result<String> {
     let parsed: Value = serde_yaml::from_str(yaml)?;
     let formatted = serde_yaml::to_string(&parsed)?;
-    let re = Regex::new(ZERO_PREFIXED_NUMBERS).unwrap();
-    let formatted = re.replace_all(&formatted, "$1$2'$3'").to_string();
-    let formatted = Regex::new(r#"(true|false)"#)
-        .unwrap()
-        .replace_all(&formatted, "'$1'")
-        .to_string();
-    Ok(formatted)
+    Ok(requote(yaml, &formatted))
 }
 
 #[cfg(test)]
@@ -140,7 +126,7 @@ mod tests {
     #[test]
     fn quotes_are_kept_if_zero_prefix() {
         let input = r#"foo:
-  bar: '123'
+  bar: 123
   baz: '0123'
 "#;
         let expected = r#"foo:
@@ -154,7 +140,7 @@ mod tests {
     #[test]
     fn quotes_are_kept_if_zero_prefix_when_nested() {
         let input = r#"foo: |
-  bar: '123'
+  bar: 123
   baz: '0123'
 "#;
         let expected = r#"foo: |
@@ -168,7 +154,7 @@ mod tests {
     #[test]
     fn quotes_are_kept_if_zero_prefix_in_sequence() {
         let input = r#"foo:
-  - '123'
+  - 123
   - '0123'
 "#;
         let expected = r#"foo:

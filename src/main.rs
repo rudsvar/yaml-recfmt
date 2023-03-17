@@ -22,10 +22,14 @@ pub struct Args {
 }
 
 /// Read from stdin and write to stdout
-fn pipe() -> color_eyre::Result<()> {
+fn pipe(args: &Args) -> color_eyre::Result<()> {
     tracing::info!("Processing stdin");
     let input = std::io::read_to_string(std::io::stdin())?;
-    let formatted = yaml_recfmt::format::format_recursive(&input)?;
+    let formatted = if args.recursive {
+        yaml_recfmt::format::format_recursive(&input)
+    } else {
+        yaml_recfmt::format::format(&input)
+    }?;
     print!("{formatted}");
     Ok(())
 }
@@ -83,7 +87,7 @@ fn main() -> color_eyre::Result<()> {
     tracing::debug!("{args:?}");
 
     if args.files.is_empty() {
-        pipe()?;
+        pipe(&args)?;
     } else {
         // Iterate through file list
         args.files.iter().for_each(|root| {
