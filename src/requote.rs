@@ -2,8 +2,8 @@ use lazy_static::lazy_static;
 use regex::Regex;
 
 lazy_static! {
-    static ref QUOTED_MAP: Regex = Regex::new(r#"\s*(.*):\s*(['"])(.*)(['"])"#).unwrap();
-    static ref QUOTED_SEQ: Regex = Regex::new(r#"\s*-\s*(['"])(.*)(['"])"#).unwrap();
+    static ref QUOTED_MAP: Regex = Regex::new(r#"(?m)^\s*(.*):\s*(['"])(.*)(['"])\s*$"#).unwrap();
+    static ref QUOTED_SEQ: Regex = Regex::new(r#"(?m)^\s*-\s*(['"])(.*)(['"])\s*$"#).unwrap();
 }
 
 #[derive(Debug)]
@@ -56,8 +56,8 @@ fn requote_map_entries(original: &str, unquoted: &str) -> String {
     } in map_entries(original)
     {
         requoted = requoted.replace(
-            &format!("{key}: {value}"),
-            &format!("{key}: {lquote}{value}{rquote}"),
+            &format!("{key}: {value}\n"),
+            &format!("{key}: {lquote}{value}{rquote}\n"),
         );
     }
     requoted
@@ -71,7 +71,7 @@ fn requote_sequence_elements(original: &str, unquoted: &str) -> String {
         rquote,
     } in sequence_elements(original)
     {
-        requoted = requoted.replace(&format!("- {value}"), &format!("- {lquote}{value}{rquote}"));
+        requoted = requoted.replace(&format!("- {value}\n"), &format!("- {lquote}{value}{rquote}\n"));
     }
     requoted
 }
